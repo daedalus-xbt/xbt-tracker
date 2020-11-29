@@ -3,6 +3,7 @@ const { forEach } = require('p-iteration');
 const axios = require('axios')
 
 const admin = require('firebase-admin');
+const FieldValue = admin.firestore.FieldValue;
 admin.initializeApp();
 
 const bottoken = functions.config().telegram.bottoken;
@@ -151,3 +152,21 @@ exports.scan = functions.https.onRequest(async (req, res) => {
     } else res.json({ 'status': 'fail' })
 });
 
+
+exports.resend = functions.https.onRequest(async (req, res) => {
+    const token = req.query.token;
+    if (token == httptoken) {
+        const mints = await admin.firestore().collection('mints').where('notify', '==', false).get();
+        await mints.forEach(mint => {
+            admin.firestore().collection('mints').doc(mint.id).set({ 'notify': FieldValue.delete() }, { merge: true });
+        })
+
+        const swaps = await admin.firestore().collection('swaps').where('notify', '==', false).get();
+        await swaps.forEach(swap => {
+            admin.firestore().collection('swaps').doc(swap.id).set({ 'notify': FieldValue.delete() }, { merge: true });
+        })
+
+        res.json();
+
+    } else res.json({ 'status': 'fail' })
+});
