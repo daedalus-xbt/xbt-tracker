@@ -35,8 +35,9 @@ exports.notifySwaps = functions.firestore.document('/swaps/{documentId}')
 
                 text = `
     ${type}
-    ${amount0Out} ${token0Symbol}
-    for ${amount1In} ${token1Symbol}
+    ${amount0Out} *${token0Symbol}*
+    for ${amount1In} *${token1Symbol}*
+    ~ ${amountUSD} *USD*
     @price ${price}
     ${utcDate.toUTCString()}
     [Etherscan](https://etherscan.io/tx/${docs['transaction']['id']})
