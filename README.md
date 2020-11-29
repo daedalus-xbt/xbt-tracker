@@ -11,6 +11,7 @@ firebase functions:config:set http.token=
 ## Deploy
 
 ```bash
+firebase login
 firebase deploy --only functions
 ```
 
