@@ -143,7 +143,7 @@ exports.notifyBurns = functions.firestore.document('/burns/{documentId}')
             var token0Symbol = docs['pair']['token0']['symbol'];
             var token1Symbol = docs['pair']['token1']['symbol'];
             text = `
-            Burnt
+            Liquidity Removed
     ${amount1} *${token1Symbol}*
     ~ ${amount0} *${token0Symbol}*
     ~ ${amountUSD} *USD*
