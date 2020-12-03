@@ -140,14 +140,21 @@ exports.scan = functions.https.onRequest(async (req, res) => {
             data: body
         };
         var results = await axios(options);
+
         await forEach(results.data.data['mints'], async mint => {
-            const writeResult = await admin.firestore().collection('mints').doc(mint['transaction']['id']).set(mint, { merge: true });
+            var docSnap = await admin.firestore().collection('mints').doc(mint['transaction']['id']).get();
+            if (!docSnap.exists) {
+                admin.firestore().collection('mints').doc(mint['transaction']['id']).set(mint);
+            }
         });
 
         await forEach(results.data.data['swaps'], async swap => {
-            const writeResult = await admin.firestore().collection('swaps').doc(swap['transaction']['id']).set(swap, { merge: true });
-            console.log(writeResult);
+            var docSnap = await admin.firestore().collection('swaps').doc(swap['transaction']['id']).get();
+            if (!docSnap.exists) {
+                admin.firestore().collection('swaps').doc(swap['transaction']['id']).set(swap);
+            }
         });
+
         res.json(results.data);
 
     } else res.json({ 'status': 'fail' })
