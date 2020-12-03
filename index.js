@@ -127,6 +127,54 @@ exports.notifyMints = functions.firestore.document('/mints/{documentId}')
         }
     });
 
+exports.notifyBurns = functions.firestore.document('/burns/{documentId}')
+    .onWrite(async (change, context) => {
+        const docId = context.params.documentId;
+        const docs = change.after.data();
+        if (docs == undefined) return;
+
+        if (docs.hasOwnProperty('notify') != true || docs['notify'] != true) {
+
+            var url = `https://api.telegram.org/bot${bottoken}/sendMessage`;
+            var utcDate = new Date(parseInt(docs['transaction']['timestamp']) * 1000);
+            var amount0 = parseFloat(docs['amount0']).toFixed(4);
+            var amount1 = parseFloat(docs['amount1']).toFixed(4);
+            var amountUSD = parseFloat(docs['amountUSD']).toFixed(4);
+            var token0Symbol = docs['pair']['token0']['symbol'];
+            var token1Symbol = docs['pair']['token1']['symbol'];
+            text = `
+            Burnt
+    ${amount1} *${token1Symbol}*
+    ~ ${amount0} *${token0Symbol}*
+    ~ ${amountUSD} *USD*
+    ${utcDate.toUTCString()}
+    [Etherscan](https://etherscan.io/tx/${docs['transaction']['id']})
+            `
+            var body = {
+                chat_id: channel,
+                disable_web_page_preview: true,
+                parse_mode: 'markdown',
+                text: text,
+            }
+
+            var options = {
+                method: 'POST',
+                url: url,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                data: body
+            };
+            try {
+                var results = await axios(options);
+                await admin.firestore().collection('burns').doc(docId).set({ 'notify': true }, { merge: true });
+            }
+            catch (error) {
+                await admin.firestore().collection('burns').doc(docId).set({ 'notify': false }, { merge: true });
+            }
+        }
+    });
+
 exports.scan = functions.https.onRequest(async (req, res) => {
     const token = req.query.token;
     const tokenAddr = req.query.tokenAddr;
@@ -155,6 +203,13 @@ exports.scan = functions.https.onRequest(async (req, res) => {
             }
         });
 
+        await forEach(results.data.data['burns'], async burn => {
+            var docSnap = await admin.firestore().collection('burns').doc(burn['transaction']['id']).get();
+            if (!docSnap.exists) {
+                admin.firestore().collection('burns').doc(burn['transaction']['id']).set(burn);
+            }
+        });
+
         res.json(results.data);
 
     } else res.json({ 'status': 'fail' })
@@ -172,6 +227,11 @@ exports.resend = functions.https.onRequest(async (req, res) => {
         const swaps = await admin.firestore().collection('swaps').where('notify', '==', false).get();
         await swaps.forEach(swap => {
             admin.firestore().collection('swaps').doc(swap.id).set({ 'notify': FieldValue.delete() }, { merge: true });
+        })
+
+        const burns = await admin.firestore().collection('burns').where('notify', '==', false).get();
+        await burns.forEach(burn => {
+            admin.firestore().collection('burns').doc(burn.id).set({ 'notify': FieldValue.delete() }, { merge: true });
         })
 
         res.json();
